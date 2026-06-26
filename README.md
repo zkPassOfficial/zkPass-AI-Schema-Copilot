@@ -4,9 +4,7 @@ zkPass AI Schema Copilot is a Chrome MV3 extension that helps users generate zkP
 
 ## Screenshots
 
-<!-- TODO: add screenshots of the side panel, generated schema, and options page. -->
-
-_Screenshots coming soon._
+![zkPass AI Schema Copilot running in Chrome](public/screenshots/schema-copilot-demo.png)
 
 ## Core Features
 
