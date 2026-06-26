@@ -1,0 +1,18 @@
+node_modules/
+dist/
+dist.zip
+*.zip
+.DS_Store
+*.local
+.env
+.env.*
+
+# Editor/scratch backups
+*.bk
+*.real
+
+# Local notes / docs (not shared), except the tracked flow diagram
+CLAUDE.md
+.claude/
+docs/*
+!docs/chatbox-interaction-mindmap.html

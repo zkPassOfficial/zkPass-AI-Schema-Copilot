@@ -1,0 +1,56 @@
+{
+  "name": "zkpass-schema-copilot",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Chrome MV3 extension that generates zkPass schemas from natural language by observing authenticated web API requests.",
+  "author": "zkPass",
+  "license": "MIT",
+  "homepage": "https://github.com/zkPassOfficial/Schema-Builder-AI-Agent#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zkPassOfficial/Schema-Builder-AI-Agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zkPassOfficial/Schema-Builder-AI-Agent/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@zkpass/transgate-extension-sdk": "^0.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-json-view-lite": "^1.5.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.28",
+    "@eslint/js": "^9.39.4",
+    "@types/chrome": "^0.0.287",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "postcss": "^8.4.49",
+    "prettier": "^3.8.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}

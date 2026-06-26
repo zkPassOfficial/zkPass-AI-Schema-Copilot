@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>zkPass Schema Copilot — Deep Agents Architecture Flow</title>
+<style>
+  :root {
+    --human: #4a90d9;
+    --human-bg: #1a2e4a;
+    --supervisor: #c5ff4a;
+    --supervisor-bg: #1e2e0e;
+    --agent: #49cc90;
+    --agent-bg: #1a3a2a;
+    --ai: #e8a838;
+    --ai-bg: #3a2e1a;
+    --gate: #d94a8c;
+    --gate-bg: #3a1a2e;
+    --scratchpad: #a78bfa;
+    --scratchpad-bg: #231a3a;
+    --loop: #c5ff4a;
+    --line: #444;
+    --bg: #0d0d0d;
+    --text: #e8e8e8;
+    --dim: #777;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); }
+
+  .header { padding: 48px 40px 32px; max-width: 1100px; margin: 0 auto; }
+  .header h1 { font-size: 28px; font-weight: 300; letter-spacing: -0.02em; margin-bottom: 4px; }
+  .header h1 strong { font-weight: 700; color: var(--supervisor); }
+  .header p { font-size: 13px; color: var(--dim); line-height: 1.8; max-width: 700px; }
+
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; padding: 0 40px; max-width: 1100px; margin: 0 auto 40px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.08em; }
+  .legend-icon { width: 32px; height: 18px; border-radius: 4px; border: 1.5px solid; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; }
+  .legend-human .legend-icon { border-color: var(--human); color: var(--human); }
+  .legend-supervisor .legend-icon { border-color: var(--supervisor); color: var(--supervisor); }
+  .legend-agent .legend-icon { border-color: var(--agent); color: var(--agent); }
+  .legend-gate .legend-icon { border-color: var(--gate); color: var(--gate); border-radius: 50%; width: 18px; }
+  .legend-ai .legend-icon { border-color: var(--ai); color: var(--ai); }
+  .legend-scratchpad .legend-icon { border-color: var(--scratchpad); color: var(--scratchpad); border-style: dashed; }
+
+  .flow { max-width: 1100px; margin: 0 auto; padding: 0 40px 80px; position: relative; }
+  .flow::before {
+    content: ""; position: absolute; left: calc(50% - 0.5px); top: 0; bottom: 80px;
+    width: 1px; background: repeating-linear-gradient(to bottom, var(--line) 0, var(--line) 6px, transparent 6px, transparent 12px);
+  }
+
+  .node { position: relative; margin-bottom: 0; display: flex; align-items: flex-start; }
+  .node-left { justify-content: flex-end; padding-right: calc(50% + 32px); }
+  .node-right { justify-content: flex-start; padding-left: calc(50% + 32px); }
+
+  .node-box {
+    border: 1.5px solid; border-radius: 10px; padding: 16px 20px;
+    max-width: 420px; width: 100%; position: relative;
+    font-size: 12px; line-height: 1.7;
+  }
+
+  .node::after {
+    content: ""; position: absolute; left: calc(50% - 5px); top: 24px;
+    width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg);
+    z-index: 2;
+  }
+  .node::before {
+    content: ""; position: absolute; top: 28px; height: 1px; z-index: 1;
+  }
+  .node-right::before { left: calc(50% + 5px); width: 27px; background: var(--line); }
+  .node-left::before { right: calc(50% + 5px); width: 27px; background: var(--line); left: auto; }
+
+  .arrow-down { text-align: center; padding: 6px 0; color: var(--dim); font-size: 16px; position: relative; z-index: 2; }
+  .arrow-down span { background: var(--bg); padding: 0 4px; }
+
+  .node-human .node-box { border-color: var(--human); background: var(--human-bg); }
+  .node-human::after { background: var(--human); }
+
+  .node-supervisor .node-box { border-color: var(--supervisor); background: var(--supervisor-bg); }
+  .node-supervisor::after { background: var(--supervisor); }
+
+  .node-agent .node-box { border-color: var(--agent); background: var(--agent-bg); }
+  .node-agent::after { background: var(--agent); }
+
+  .node-ai .node-box { border-color: var(--ai); background: var(--ai-bg); }
+  .node-ai::after { background: var(--ai); }
+
+  .node-gate .node-box { border-color: var(--gate); background: var(--gate-bg); }
+  .node-gate::after { background: var(--gate); }
+
+  .node-scratchpad .node-box { border-color: var(--scratchpad); background: var(--scratchpad-bg); border-style: dashed; }
+  .node-scratchpad::after { background: var(--scratchpad); }
+
+  .loop-bracket {
+    position: relative; margin: 12px 0;
+    border: 1.5px dashed var(--loop); border-radius: 12px;
+    padding: 24px 16px 16px;
+  }
+  .loop-bracket .loop-label {
+    position: absolute; top: -10px; left: 24px;
+    background: var(--bg); padding: 0 10px;
+    font-size: 10px; font-weight: 700; color: var(--loop);
+    text-transform: uppercase; letter-spacing: 0.12em;
+  }
+
+  .node-title {
+    font-size: 13px; font-weight: 700; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .tag {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 3px; letter-spacing: 0.06em;
+  }
+  .tag-human { background: var(--human); color: #fff; }
+  .tag-supervisor { background: var(--supervisor); color: #000; }
+  .tag-agent { background: var(--agent); color: #000; }
+  .tag-ai { background: var(--ai); color: #000; }
+  .tag-gate { background: var(--gate); color: #fff; }
+  .tag-scratchpad { background: var(--scratchpad); color: #fff; }
+
+  .node-box ul { list-style: none; padding-left: 0; }
+  .node-box li { padding: 2px 0; color: #bbb; }
+  .node-box li::before { content: "→ "; color: var(--dim); }
+  .node-box code {
+    font-family: "SF Mono", Monaco, Consolas, monospace; font-size: 10.5px;
+    background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; color: #ccc;
+  }
+
+  .branch-paths { display: flex; gap: 12px; margin-top: 10px; }
+  .branch-path {
+    flex: 1; border-radius: 6px; padding: 10px 12px;
+    font-size: 11px; line-height: 1.6;
+  }
+  .branch-path .bp-title { font-weight: 700; margin-bottom: 4px; font-size: 11px; }
+
+  .file-ref { font-size: 10px; color: #555; margin-top: 8px; font-style: italic; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; }
+
+  .feedback-loop { text-align: center; padding: 8px 0; position: relative; z-index: 2; }
+  .feedback-loop .loop-line {
+    display: inline-block; border: 1.5px dashed var(--loop);
+    border-radius: 20px; padding: 4px 20px;
+    font-size: 10px; font-weight: 600; color: var(--loop);
+    letter-spacing: 0.05em;
+  }
+
+  .plan-track {
+    margin-top: 10px; display: flex; gap: 4px; align-items: center;
+  }
+  .plan-step {
+    display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--dim);
+    padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+  }
+  .plan-step.active { border-color: var(--supervisor); color: var(--supervisor); background: rgba(197,255,74,0.08); }
+  .plan-step.done { border-color: var(--agent); color: var(--agent); background: rgba(73,204,144,0.08); }
+  .plan-step.waiting { border-color: var(--gate); color: var(--gate); background: rgba(217,74,140,0.08); }
+  .plan-arrow { color: var(--dim); font-size: 10px; }
+
+  .scratchpad-fields { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .sp-field {
+    font-size: 9px; padding: 2px 8px; border-radius: 10px;
+    border: 1px solid rgba(167,139,250,0.3); color: var(--scratchpad);
+    background: rgba(167,139,250,0.06);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>zkPass Schema Copilot<br><strong>Deep Agents</strong> Architecture Flow</h1>
+  <p>
+    Supervisor orchestrator + specialized Subagents + Planning/Todos + Human-in-the-Loop gates + Scratchpad context.
+    The Supervisor looks up reusable endpoint knowledge, builds a plan, delegates to subagents sequentially, and pauses at gates for human decisions.
+    The Scratchpad (dashed purple) carries shared state between agents via <code>chrome.storage.session</code>.
+  </p>
+</div>
+
+<div class="legend">
+  <div class="legend-item legend-human"><div class="legend-icon">H</div> Human</div>
+  <div class="legend-item legend-supervisor"><div class="legend-icon">SUP</div> Supervisor</div>
+  <div class="legend-item legend-agent"><div class="legend-icon">AG</div> Subagent</div>
+  <div class="legend-item legend-ai"><div class="legend-icon">AI</div> LLM Call</div>
+  <div class="legend-item legend-gate"><div class="legend-icon">⏸</div> Gate</div>
+  <div class="legend-item legend-scratchpad"><div class="legend-icon">≡</div> Scratchpad</div>
+</div>
+
+<div class="flow">
+
+<!-- ═══ STEP 1: Human Input ═══ -->
+<div class="node node-left node-human">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-human">Human</span> User Input</div>
+    <ul>
+      <li>Type message in ChatInput</li>
+      <li>Click Re-scan / Export / Try It</li>
+      <li>Switch browser tab / navigate to new domain</li>
+      <li>Confirm or reject at a gate prompt</li>
+    </ul>
+    <div class="file-ref">ChatInput.tsx, ActionButtons.tsx, App.tsx</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 2: Message to Background ═══ -->
+<div class="node node-right node-supervisor">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-supervisor">Supervisor</span> Receive & Classify</div>
+    <ul>
+      <li><code>AGENT_EXECUTE</code> → <code>supervisor.execute()</code></li>
+      <li><code>AGENT_RESUME</code> → <code>supervisor.resume()</code> (after gate)</li>
+      <li><code>AGENT_VERIFY</code> → <code>supervisor.executeVerify()</code></li>
+    </ul>
+    <div class="branch-paths">
+      <div class="branch-path" style="background:rgba(73,204,144,0.1);border:1px solid rgba(73,204,144,0.2);">
+        <div class="bp-title" style="color:var(--agent);">RELOAD</div>
+        "reload", "刷新"...
+        <br>→ <code>reloadOnly()</code>
+      </div>
+      <div class="branch-path" style="background:rgba(232,168,56,0.1);border:1px solid rgba(232,168,56,0.2);">
+        <div class="bp-title" style="color:var(--ai);">SCHEMA</div>
+        "prove", "verify"...
+        <br>→ Multi-step plan ▼
+      </div>
+      <div class="branch-path" style="background:rgba(74,144,217,0.1);border:1px solid rgba(74,144,217,0.2);">
+        <div class="bp-title" style="color:var(--human);">CHAT</div>
+        General Q&A
+        <br>→ ChatAgent
+      </div>
+    </div>
+    <div class="file-ref">agents/supervisor.ts → classifyIntent()</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 3: Plan Creation ═══ -->
+<div class="node node-right node-supervisor">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-supervisor">Supervisor</span> Build Plan (Schema Intent)</div>
+    <ul>
+      <li>Create <code>AgentPlan</code> with ordered tasks</li>
+      <li>Initialize <code>Scratchpad</code> with tabId, domain, userMessage, chatHistory</li>
+      <li>Decide reuse vs. reload based on chat context</li>
+    </ul>
+    <div class="plan-track">
+      <div class="plan-step active">1. Lookup</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">2. Capture</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">3. Analysis</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">4. Schema</div>
+    </div>
+    <div class="file-ref">agents/supervisor.ts → executeSchemaFlow()</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 4: LookupAgent ═══ -->
+<div class="node node-right node-agent">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-agent">LookupAgent</span> Lookup Reusable Fields</div>
+    <ul>
+      <li>POST current site host to <code>https://schema-builder.zkpass.org/lookup</code></li>
+      <li>Load known endpoint fields, purposes, fixed nullifier and request matcher</li>
+      <li>Unknown domain or service failure returns no hints and does not block capture</li>
+    </ul>
+    <div class="scratchpad-fields">
+      <span class="sp-field">writes: lookupEndpoints[]</span>
+      <span class="sp-field">writes: lookupError?</span>
+    </div>
+    <div class="plan-track">
+      <div class="plan-step done">1. Lookup ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step active">2. Capture</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">3. Analysis</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">4. Schema</div>
+    </div>
+    <div class="file-ref">agents/lookup-agent.ts → lookup/client.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 5: CaptureAgent ═══ -->
+<div class="node node-right node-agent">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-agent">CaptureAgent</span> Capture API Traffic</div>
+    <ul>
+      <li>Reload page or reuse existing captures</li>
+      <li>webRequest intercept: body → headers → response</li>
+      <li>Capture server-rendered HTML via <code>captureDocumentHtml()</code></li>
+      <li>Build candidate list with <code>buildApiCandidates()</code></li>
+    </ul>
+    <div class="scratchpad-fields">
+      <span class="sp-field">writes: captures[]</span>
+      <span class="sp-field">writes: candidates[]</span>
+      <span class="sp-field">writes: htmlCapture</span>
+    </div>
+    <div class="plan-track">
+      <div class="plan-step done">1. Lookup ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step done">2. Capture ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step active">3. Analysis</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step">4. Schema</div>
+    </div>
+    <div class="file-ref">agents/capture-agent.ts → capture.ts, storage.ts, candidates.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 6: AnalysisAgent ═══ -->
+<div class="node node-right node-ai">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-ai">AnalysisAgent</span> AI Analysis</div>
+    <ul>
+      <li>Build system prompt (schema rules + assertion patterns)</li>
+      <li>Bind lookup endpoints by host + method + path + optional query/body/header match</li>
+      <li>Matched lookup API, fields and fixed nullifier take priority over heuristic selection</li>
+      <li>Uncaptured lookup entries expose only page/purpose hints and cannot enter a schema</li>
+      <li>Retain <code>candidateApiId</code> + <code>lookupEndpointIndex</code> for match rules</li>
+      <li>Call LLM with multi-turn chat history</li>
+      <li>Parse → <code>AiMatchResult</code> / <code>MissingDataResult</code> / <code>AnalysisResult</code></li>
+    </ul>
+    <div class="scratchpad-fields">
+      <span class="sp-field">reads: candidates[]</span>
+      <span class="sp-field">reads: lookupEndpoints[]</span>
+      <span class="sp-field">writes: rawAiResponse</span>
+      <span class="sp-field">writes: parsedResult</span>
+    </div>
+    <div class="file-ref">agents/analysis-agent.ts → prompts.ts, client.ts, response-parser.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 7: Supervisor Gate Check ═══ -->
+<div class="node node-right node-supervisor">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-supervisor">Supervisor</span> Evaluate Result & Route</div>
+    <ul>
+      <li>Check <code>parsedResult</code> type from Scratchpad</li>
+      <li>If <code>missing_data</code> → pause at Missing Data gate</li>
+      <li>If <code>analysis</code> → pause at Analysis Questions gate</li>
+      <li>If <code>AiMatchResult</code> with confidence &lt; 85% → pause at Confidence gate</li>
+      <li>If <code>AiMatchResult</code> with confidence ≥ 85% → proceed to SchemaAgent</li>
+    </ul>
+    <div class="file-ref">agents/supervisor.ts → executeSchemaFlow() gate logic</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ GATE: Human-in-the-Loop ═══ -->
+<div class="loop-bracket">
+  <div class="loop-label">⏸ Human-in-the-Loop Gates</div>
+
+  <div class="node node-right node-gate" style="margin-bottom: 8px;">
+    <div class="node-box">
+      <div class="node-title"><span class="tag tag-gate">Gate</span> Pause & Save Scratchpad</div>
+      <div class="branch-paths">
+        <div class="branch-path" style="background:rgba(217,74,140,0.1);border:1px solid rgba(217,74,140,0.2);">
+          <div class="bp-title" style="color:var(--gate);">MISSING DATA</div>
+          Required data not in captures
+          <br>→ Suggest pages to visit
+          <br>→ <code>saveScratchpad(planId)</code>
+        </div>
+        <div class="branch-path" style="background:rgba(217,74,140,0.1);border:1px solid rgba(217,74,140,0.2);">
+          <div class="bp-title" style="color:var(--gate);">ANALYSIS</div>
+          Facts / assumptions / questions
+          <br>→ Show understanding
+          <br>→ Await clarification
+        </div>
+        <div class="branch-path" style="background:rgba(217,74,140,0.1);border:1px solid rgba(217,74,140,0.2);">
+          <div class="bp-title" style="color:var(--gate);">CONFIDENCE</div>
+          60–84%: confirm/reject?
+          <br>&lt;60%: suggest retry
+          <br>→ <code>activeGate</code> in store
+        </div>
+      </div>
+      <div class="plan-track">
+        <div class="plan-step done">1. Lookup ✓</div>
+        <span class="plan-arrow">→</span>
+        <div class="plan-step done">2. Capture ✓</div>
+        <span class="plan-arrow">→</span>
+        <div class="plan-step done">3. Analysis ✓</div>
+        <span class="plan-arrow">→</span>
+        <div class="plan-step waiting">4. Schema ⏸</div>
+      </div>
+      <div class="file-ref">agents/types.ts → GateRequest, agents/context.ts → saveScratchpad()</div>
+    </div>
+  </div>
+  <div class="arrow-down"><span>▼</span></div>
+
+  <div class="node node-left node-human" style="margin-bottom: 0;">
+    <div class="node-box">
+      <div class="node-title"><span class="tag tag-human">Human</span> Respond to Gate</div>
+      <ul>
+        <li><strong>Missing data:</strong> navigate to page, say "继续" / "done"</li>
+        <li><strong>Analysis:</strong> answer questions, say "go ahead"</li>
+        <li><strong>Confidence:</strong> confirm → <code>AGENT_RESUME</code> / reject → clear gate</li>
+        <li><strong>Adjust:</strong> type new query → fresh <code>AGENT_EXECUTE</code></li>
+      </ul>
+      <div class="file-ref">chat-store.ts → confirmSchema(), rejectSchema(), sendUserMessage()</div>
+    </div>
+  </div>
+  <div class="feedback-loop"><span class="loop-line">↑ RESUME: AGENT_RESUME loads scratchpad → continues to SchemaAgent</span></div>
+  <div class="feedback-loop"><span class="loop-line">↑ RETRY: AGENT_EXECUTE starts new plan with retryContext</span></div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 8: SchemaAgent ═══ -->
+<div class="node node-right node-agent">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-agent">SchemaAgent</span> Build Schema</div>
+    <ul>
+      <li>Read <code>parsedResult</code>, <code>captures</code> and <code>lookupEndpoints</code> from Scratchpad</li>
+      <li>Call <code>buildSchema()</code> → multi-API zkPass schema</li>
+      <li>Apply lookup query/body/header matcher and representative page when selected</li>
+    </ul>
+    <div class="scratchpad-fields">
+      <span class="sp-field">reads: parsedResult</span>
+      <span class="sp-field">reads: captures[]</span>
+      <span class="sp-field">reads: lookupEndpoints[]</span>
+      <span class="sp-field">writes: schema</span>
+    </div>
+    <div class="plan-track">
+      <div class="plan-step done">1. Lookup ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step done">2. Capture ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step done">3. Analysis ✓</div>
+      <span class="plan-arrow">→</span>
+      <div class="plan-step done">4. Schema ✓</div>
+    </div>
+    <div class="file-ref">agents/schema-agent.ts → schema/builder.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 9: Scratchpad State ═══ -->
+<div class="node node-left node-scratchpad">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-scratchpad">Scratchpad</span> Shared Context</div>
+    <ul>
+      <li><strong>Inputs:</strong> tabId, domain, userMessage, chatHistory, retryContext, intent</li>
+      <li><strong>LookupAgent →</strong> lookupEndpoints[], lookupError?</li>
+      <li><strong>CaptureAgent →</strong> captures[], candidates[], htmlCapture</li>
+      <li><strong>AnalysisAgent →</strong> rawAiResponse, parsedResult</li>
+      <li><strong>SchemaAgent →</strong> schema (ZkPassSchema)</li>
+      <li><strong>VerifyAgent →</strong> verifyResult</li>
+    </ul>
+    <ul>
+      <li>Persisted via <code>chrome.storage.session</code> at gate pauses</li>
+      <li>Slim serialization: only AI-selected captures are stored, with response bodies removed</li>
+      <li>Cleared after resume completes</li>
+    </ul>
+    <div class="file-ref">agents/types.ts → Scratchpad, agents/context.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 10: Schema Ready ═══ -->
+<div class="node node-right node-supervisor">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-supervisor">Supervisor</span> Return SupervisorResult</div>
+    <ul>
+      <li>Plan status: <code>completed</code></li>
+      <li>Result includes: schema, aiResult, plan, candidates</li>
+      <li>Sidepanel formats via <code>handleSupervisorResult()</code></li>
+      <li>Schema rendered in SchemaPreview + ActionButtons</li>
+    </ul>
+    <div class="file-ref">agents/types.ts → SupervisorResult, chat-store.ts, format.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 11: Post-Schema Actions ═══ -->
+<div class="node node-left node-human">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-human">Human</span> Post-Schema Actions</div>
+    <div class="branch-paths">
+      <div class="branch-path" style="background:rgba(73,204,144,0.1);border:1px solid rgba(73,204,144,0.2);">
+        <div class="bp-title" style="color:var(--agent);">VERIFY</div>
+        Try It → <code>AGENT_VERIFY</code>
+        <br>→ VerifyAgent: submit + verify
+        <br>Auto-retry HTTP/2 on TLS fail
+      </div>
+      <div class="branch-path" style="background:rgba(74,144,217,0.1);border:1px solid rgba(74,144,217,0.2);">
+        <div class="bp-title" style="color:var(--human);">EXPORT</div>
+        Copy JSON / Download
+        <br>Export Swagger HTML
+      </div>
+      <div class="branch-path" style="background:rgba(74,144,217,0.1);border:1px solid rgba(74,144,217,0.2);">
+        <div class="bp-title" style="color:var(--human);">ITERATE</div>
+        Re-scan / New Query
+        <br>Adjust → new plan
+      </div>
+    </div>
+    <div class="file-ref">ActionButtons.tsx → AGENT_VERIFY, agents/verify-agent.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ STEP 12: VerifyAgent ═══ -->
+<div class="node node-right node-agent">
+  <div class="node-box">
+    <div class="node-title"><span class="tag tag-agent">VerifyAgent</span> Submit & Verify</div>
+    <ul>
+      <li>Submit schema to zkPass API → get <code>schemaId</code></li>
+      <li>Run zkPass TransGate verification on active tab</li>
+      <li>If <code>TLS_PROXY_FAILED</code> + no httpVersion → retry with HTTP/2.0</li>
+      <li>Return verification result to Supervisor</li>
+    </ul>
+    <div class="scratchpad-fields">
+      <span class="sp-field">reads: schema</span>
+      <span class="sp-field">writes: verifyResult</span>
+    </div>
+    <div class="file-ref">agents/verify-agent.ts → background/verify.ts</div>
+  </div>
+</div>
+<div class="arrow-down"><span>▼</span></div>
+
+<!-- ═══ PASSIVE: Tab Switch ═══ -->
+<div class="loop-bracket">
+  <div class="loop-label">↻ Passive Loop — Tab / Domain Switch</div>
+
+  <div class="node node-left node-human" style="margin-bottom:4px;">
+    <div class="node-box" style="padding:12px 16px;">
+      <div class="node-title"><span class="tag tag-human">Human</span> Switch Tab / Navigate</div>
+      <ul>
+        <li>User switches to a different domain tab</li>
+      </ul>
+    </div>
+  </div>
+  <div class="arrow-down"><span>▼</span></div>
+  <div class="node node-right node-supervisor" style="margin-bottom:4px;">
+    <div class="node-box" style="padding:12px 16px;">
+      <div class="node-title"><span class="tag tag-supervisor">Supervisor</span> Auto Re-analyze</div>
+      <ul>
+        <li>Detect domain change → <code>TAB_DOMAIN_CHANGED</code></li>
+        <li>If prior query exists → <code>rerunForDomainChange()</code></li>
+        <li>Triggers fresh <code>AGENT_EXECUTE</code> with last user query</li>
+      </ul>
+    </div>
+  </div>
+  <div class="feedback-loop"><span class="loop-line">↑ CREATES NEW PLAN → Lookup → Capture → Analysis → Schema for new domain</span></div>
+</div>
+
+<!-- ═══ Architecture Summary ═══ -->
+<div style="margin-top: 40px; padding: 24px; border: 1.5px solid rgba(197,255,74,0.2); border-radius: 12px; background: rgba(197,255,74,0.03);">
+  <div style="font-size: 14px; font-weight: 700; color: var(--supervisor); margin-bottom: 12px;">Architecture Summary</div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 11px; line-height: 1.8; color: #bbb;">
+    <div>
+      <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Subagents</div>
+      <code>LookupAgent</code> — reusable endpoint fields, nullifier, request matcher<br>
+      <code>CaptureAgent</code> — page reload, webRequest, HTML capture<br>
+      <code>AnalysisAgent</code> — LLM prompt building, parsing<br>
+      <code>SchemaAgent</code> — zkPass schema construction<br>
+      <code>VerifyAgent</code> — submit + TransGate verification<br>
+      <code>ChatAgent</code> — general Q&A responses
+    </div>
+    <div>
+      <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Key Files</div>
+      <code>agents/supervisor.ts</code> — orchestrator<br>
+      <code>lookup/client.ts</code> — public lookup client + response validation<br>
+      <code>agents/types.ts</code> — Plan, Task, Gate, Scratchpad<br>
+      <code>agents/context.ts</code> — session storage persistence<br>
+      <code>sidepanel/utils/format.ts</code> — result formatting<br>
+      <code>sidepanel/store/chat-store.ts</code> — UI state
+    </div>
+  </div>
+</div>
+
+</div>
+
+</body>
+</html>
