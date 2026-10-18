@@ -1,6 +1,6 @@
 # zkPass AI Schema Copilot
 
-zkPass AI Schema Copilot is a Chrome MV3 extension that helps users generate zkPass schemas from natural language. It opens as a side panel, observes authenticated website traffic selected by the user, asks an AI model to identify reusable API fields, and produces a zkPass schema that can be reviewed, exported, submitted, and verified.
+zkPass AI Schema Copilot is a Chrome MV3 extension that helps users generate zkPass schemas from natural language. It opens as a side panel and captures eligible authenticated website traffic, asks an AI model to identify reusable API fields, and produces a zkPass schema that can be reviewed, exported, submitted, and verified.
 
 ## Screenshots
 
@@ -9,7 +9,7 @@ zkPass AI Schema Copilot is a Chrome MV3 extension that helps users generate zkP
 ## Core Features
 
 - Natural-language schema generation: describe what you want to prove, such as account status, KYC level, balance, membership, points, or activity.
-- Authenticated API capture: records same-site API traffic, request metadata, response structures, and page HTML while the user browses the selected website.
+- Authenticated API capture: records eligible requests, metadata, response structures, and page HTML. The background listeners cover `<all_urls>` and are not limited to the currently selected tab; review the capture scope below.
 - Lookup-first field selection: before schema generation, the extension calls the public zkPass lookup service for reusable endpoint, nullifier, matcher, and field hints. Lookup results are only used when they match APIs captured from the current page.
 - Deep Agent workflow: a supervisor coordinates lookup, capture, AI analysis, schema building, confirmation gates, and verification.
 - Multi-API schemas: supports using one API for the asserted data and another API for a stable identity nullifier when needed.
@@ -61,7 +61,7 @@ npm run dev
 # Type-check, lint, format
 npm run typecheck
 npm run lint
-npm run format
+npx prettier --check README.md
 
 # Production build (outputs to dist/)
 npm run build
@@ -90,7 +90,7 @@ Open the extension options page before generating schemas:
 7. Click `Test Connection`.
 8. Click `Save Settings`.
 
-The configuration is saved in Chrome local extension storage as `ai_config`. Your API key never leaves the browser except in requests to the AI endpoint you configure.
+The configuration is saved in Chrome local extension storage as `ai_config`. The client uses the configured API key in provider requests; this is not encrypted-at-rest storage or a universal non-disclosure guarantee. `Test Connection` makes a real provider request.
 
 ## Endpoint and Model Configuration
 
@@ -187,12 +187,12 @@ Lookup results provide known endpoints, request matchers, nullifier fields, and 
 
 ## Permissions
 
-The extension requests the following permissions. Each is required for the schema-generation workflow:
+The manifest requests the following permissions. The table describes their use; it is not a minimal-permission audit:
 
 | Permission | Why it is needed |
 |---|---|
-| `host_permissions: <all_urls>` | The user can choose any authenticated website to build a schema from. The extension only reads traffic for the tab the user is actively working on. |
-| `webRequest` | Passively observe API requests on the active page so their structure can be analyzed. (No blocking/redirecting variant is used.) |
+| `host_permissions: <all_urls>` | Broad URL access. Background listeners register for all URLs; the capture handlers do not enforce a selected-tab or same-site-only allowlist. |
+| `webRequest` | Observe eligible tab requests. Subsequent capture logic may replay requests to obtain response bodies; the full capture flow is not passive. |
 | `scripting` | Inject code into the page to read the DOM and to replay a captured request with the user's session so a clean response body can be sampled. |
 | `tabs` | Read the active tab URL/host and reload it to trigger the target request. |
 | `webNavigation` | Track single-page-app navigations so the active host stays correct. |
@@ -203,13 +203,15 @@ The extension requests the following permissions. Each is required for the schem
 
 ## Privacy and Data Handling
 
-This extension observes authenticated web traffic, so data handling is intentionally minimal and stays local by default.
+The implementation has separate capture, storage, prompt, export, and verification boundaries:
 
-- **Stored locally only.** The AI configuration (provider, endpoint, model, API key) is stored in `chrome.storage.local`. Captured requests and transient workflow state are stored in `chrome.storage.session` and cleared when the service worker unloads. None of this is sent to any zkPass server.
-- **What is sent to the AI provider.** During analysis, the extension sends the AI endpoint you configured a compact summary of captured API candidates: URL, method, host, path, and response field names with truncated, masked sample values. Raw cookies, `Authorization` headers, and full request/response bodies are **not** sent to the AI provider.
-- **What is sent to zkPass.** The lookup call sends only the current site host (e.g. `www.example.com`). On submit, the generated schema (field paths and conditions, not raw captures) is sent to the zkPass schema service. Verification runs via the TransGate zkTLS SDK.
-- **No telemetry.** The extension contains no analytics or tracking.
-- **Local export note.** The optional "export captured APIs" feature writes an HTML file to your machine that may contain raw request headers and bodies. It is generated locally and never uploaded; treat the file as sensitive.
+- **Capture and replay.** Background listeners use `<all_urls>`. Filtering excludes selected resource/URL types and invalid tab IDs, but does not restrict capture to the active tab or to same-site destinations. Data is grouped by the tab's base domain; grouping is not an access-control boundary. Replay can use the original method/body and page credentials, so replaying a write request can repeat its effects. Evaluate only on authorized, controlled pages/data.
+- **Local state.** AI settings, including the API key, use `chrome.storage.local`. Raw captures and workflow scratchpads use `chrome.storage.session`. Worker suspension is not a session-storage deletion event. Chrome documents clearing when the extension is disabled, reloaded, updated, or the browser restarts; explicit application cleanup also matters. See the [Chrome storage reference](https://developer.chrome.com/docs/extensions/reference/api/storage#session).
+- **AI requests.** `buildUserPrompt` selects URL/method/host/path metadata and indexed field samples, plus matched lookup hints and the user's intent. Analysis also passes conversation history and may include retry context. Direct candidate headers/bodies are omitted from that prompt summary, but URLs/query strings, user text/history, lookup matchers, and heuristic samples can still contain sensitive information. Masking selected sample patterns is not comprehensive redaction of everything sent.
+- **zkPass services.** Lookup sends the current host. Schema submission is an external write of generated schema and project metadata. Verification calls the TransGate SDK and may reload the tab; it is distinct from LLM generation and schema acceptance. Provider and SDK downstream data handling is not audited here.
+- **Exports.** Captured-API HTML export may contain raw headers/bodies. Treat the output as sensitive even though the export helper generates it locally. UI clearing or closing a tab does not prove deletion of session captures, provider-side history, downloaded files, or submitted schemas.
+
+The capture store deduplicates by URL, method, and request body, and applies bounded domain/capture retention. Scratchpad persistence can retain selected request metadata while dropping response bodies from its slim capture subset; this does not redact every scratchpad field. No universal "local only", "no telemetry", or privacy guarantee is established by this static review.
 
 ## Common Workflow
 
@@ -252,3 +254,11 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for th
 ## License
 
 Released under the [MIT License](LICENSE). Copyright (c) 2026 zkPass.
+
+## Review status and unresolved integration details
+
+The tracked manifest is version `2.0.0`, Node requirement `>=18`, with an npm lockfile. No automated test suite or CI workflow is tracked. No dependency install, project scripts, build, browser capture/login, LLM connection test, schema submission, or zkTLS run was performed for this documentation review.
+
+Use `npm run typecheck` and `npm run lint` when authorized to execute project checks. `npm run format` runs `prettier --write .` and changes the whole repository; it is not a read-only check. The development example above uses a check on this README to illustrate a bounded formatting check; select the files relevant to your change. The contributor guide's targeted-formatting rule remains in force.
+
+The package's repository/bugs metadata still names `Schema-Builder-AI-Agent`; it was not rewritten as part of this documentation-only change. Confirm the intended project/contact destination before filing an issue, and use the security policy for private reports. Hosted extension availability, provider compatibility, lookup freshness, schema validity, capture isolation, and verification outcomes remain unverified. The interaction diagram is illustrative; its two remaining Chinese labels are translated without changing structure or behavior.

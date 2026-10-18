@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Clarified implemented capture/replay scope, storage lifetime, AI input boundaries, and documentation verification limits; aligned formatting guidance and translated two diagram labels. No runtime behavior changed.
 - Prepared the repository for open-source release: added MIT license, contributing and security guides, expanded README (tech stack, development, permissions, privacy), and package metadata.
 - Removed committed build artifacts and unused reference fixtures from the repository.
 
